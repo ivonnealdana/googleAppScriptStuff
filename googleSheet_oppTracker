@@ -1,0 +1,84 @@
+/** This project will take a list of opportunities/tasks from a sheet and then use a key to get jobs/subtasks from another sheet 
+integrate all on a new sheet and group commong jobs/subtasks based on the key*/
+
+var spreadsheetId = "1HQ6bX7rXy4oGPktnJF22mqRe4mdrhIX6OQGDoyuMj00";
+var opportunitiesSheetName = "Tracker";
+var taggedJobsSheetName = "Tagged Jobs";
+var finalReportSheetName = "Sheet1"
+
+
+function getOpportunities() {
+/** get all the opportunities values */
+  var values = SpreadsheetApp.openById(spreadsheetId).getSheetByName(opportunitiesSheetName).getDataRange().getValues();
+  values.shift();
+  return values;
+}
+
+function getJobs(opportunityChannel) {
+  var taggedJobs = [];
+  var jobs = SpreadsheetApp.openById(spreadsheetId).getSheetByName(taggedJobsSheetName).getDataRange().getValues();
+  jobs.shift();
+  
+  for (var i=0; i<jobs.length; i++){
+    if (jobs[i][0] == opportunityChannel && jobs[i][0] != "") {
+      jobs[i].splice(0,0," ");
+      taggedJobs.push(jobs[i]);
+    }
+  }
+  return taggedJobs;
+}
+
+function removeAllGroupsFromSheet() {
+  let sheet = SpreadsheetApp.openById(spreadsheetId).getSheetByName(finalReportSheetName);
+  let lastRow = sheet.getDataRange().getLastRow();
+  
+  for (let row = 1; row < lastRow; row++) {
+    let depth = sheet.getRowGroupDepth(row);
+    if (depth < 1) continue;
+    sheet.getRowGroup(row, depth).remove();
+  }
+}
+
+function insertOpportunitiesJobs() {
+  var channelInfo = 11; /** No. of column where the channel name is taken from */
+  var reportSheet = SpreadsheetApp.openById(spreadsheetId).getSheetByName(finalReportSheetName);
+  var firstRow = 0;
+  var finalRow = 1;
+  var range;
+
+  /** clean sheet */
+  removeAllGroupsFromSheet();
+  reportSheet.clearContents();
+  reportSheet.clearFormats();
+  
+  
+  /** get opportunities */
+  opportunities = getOpportunities();
+  
+  for (var i=0; i<opportunities.length; i++) {
+
+      /** channel name is in column L or position 11 */
+      Logger.log(opportunities[i][channelInfo]);
+      var taggedJobs = getJobs(opportunities[i][channelInfo]);
+      Logger.log("No. of jobs: "+taggedJobs.length);
+      /** Always print the opportunity even if it has no jobs */
+      var newRow = reportSheet.appendRow(opportunities[i]);
+      range = reportSheet.getRange(finalRow, 1, 1, reportSheet.getMaxColumns()).activate();
+      range.setBackgroundRGB(245,245,245);
+      if (taggedJobs.length > 0) {
+        /** If the opportunity have jobs */
+        for (var j=0; j<taggedJobs.length; j++) {          
+          var newRow = reportSheet.appendRow(taggedJobs[j]);
+          Logger.log(j);
+        }
+        firstRow = finalRow + 1;
+        range = reportSheet.getRange(firstRow, 1, taggedJobs.length,reportSheet.getMaxColumns()).activate().shiftRowGroupDepth(1);
+        finalRow = firstRow + taggedJobs.length - 1;
+        Logger.log("firstRow: " + firstRow + " finalRow: "+ finalRow );
+        range.setBackgroundRGB(211,211,211);
+      }
+      finalRow = finalRow + 1;
+   }
+}
+
+
